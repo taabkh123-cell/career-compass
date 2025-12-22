@@ -38,22 +38,29 @@ const Index = () => {
     setCurrentStep('freetext');
   }, []);
 
-  const handleFreeTextComplete = useCallback((data: { goals: string; interests: string; skills: string }) => {
+  const processAndShowResults = useCallback((textData: { goals: string; interests: string; skills: string }) => {
     // Calculate scores
     const scores = calculatePersonalityScores(personalityResponses, personalityQuestions);
     setPersonalityScores(scores);
 
     // Extract profile from text
-    const extractedProfile = extractProfileFromText(data.goals, data.interests, data.skills);
+    const extractedProfile = extractProfileFromText(textData.goals, textData.interests, textData.skills);
     setProfile(extractedProfile);
 
     // Show loading
     setCurrentStep('loading');
   }, [personalityResponses]);
 
+  const handleFreeTextComplete = useCallback((data: { goals: string; interests: string; skills: string }) => {
+    processAndShowResults(data);
+  }, [processAndShowResults]);
+
+  const handleFreeTextSkip = useCallback(() => {
+    processAndShowResults({ goals: '', interests: '', skills: '' });
+  }, [processAndShowResults]);
+
   const handleLoadingComplete = useCallback(() => {
     if (personalityScores && profile) {
-      // Generate recommendations
       const recs = generateRecommendations(personalityScores, profile);
       setRecommendations(recs);
       setCurrentStep('results');
@@ -96,7 +103,11 @@ const Index = () => {
         )}
         
         {currentStep === 'freetext' && (
-          <FreeTextInput onComplete={handleFreeTextComplete} onBack={handleBackToPersonality} />
+          <FreeTextInput 
+            onComplete={handleFreeTextComplete} 
+            onSkip={handleFreeTextSkip}
+            onBack={handleBackToPersonality} 
+          />
         )}
         
         {currentStep === 'loading' && (
