@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+// Trait Treks - AI Career Counselor
 import LandingPage from '@/components/LandingPage';
 import ConsentForm from '@/components/ConsentForm';
 import PersonalityTest from '@/components/PersonalityTest';
