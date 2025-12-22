@@ -1,17 +1,29 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   Download, Star, RefreshCw, ChevronDown, ChevronUp,
   Briefcase, GraduationCap, TrendingUp, DollarSign,
-  Brain, Sparkles, Target
+  Brain, Sparkles, Target, Info
 } from 'lucide-react';
 import { PersonalityScores, CareerRecommendation, ExtractedProfile } from '@/utils/careerUtils';
 import { traitDescriptions } from '@/data/personalityQuestions';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { jsPDF } from 'jspdf';
+import {
+  Chart as ChartJS,
+  RadialLinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Radar } from 'react-chartjs-2';
+
+ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
 interface ResultsDashboardProps {
   personalityScores: PersonalityScores;
@@ -28,53 +40,141 @@ const ResultsDashboard = ({
 }: ResultsDashboardProps) => {
   const [expandedCareer, setExpandedCareer] = useState<string | null>(recommendations[0]?.career.id || null);
   const [satisfaction, setSatisfaction] = useState<number | null>(null);
-  const dashboardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const traitData = [
-    { key: 'O' as const, name: 'Openness', color: 'bg-blue-500' },
-    { key: 'C' as const, name: 'Conscientiousness', color: 'bg-green-500' },
-    { key: 'E' as const, name: 'Extraversion', color: 'bg-yellow-500' },
-    { key: 'A' as const, name: 'Agreeableness', color: 'bg-pink-500' },
-    { key: 'N' as const, name: 'Neuroticism', color: 'bg-purple-500' },
+    { key: 'O' as const, name: 'Openness', color: 'hsl(210, 70%, 50%)' },
+    { key: 'C' as const, name: 'Conscientiousness', color: 'hsl(142, 70%, 45%)' },
+    { key: 'E' as const, name: 'Extraversion', color: 'hsl(45, 90%, 50%)' },
+    { key: 'A' as const, name: 'Agreeableness', color: 'hsl(330, 70%, 50%)' },
+    { key: 'N' as const, name: 'Emotional Stability', color: 'hsl(270, 60%, 55%)' },
   ];
 
+  // Radar chart data
+  const radarData = {
+    labels: traitData.map(t => t.name),
+    datasets: [
+      {
+        label: 'Your Profile',
+        data: traitData.map(t => t.key === 'N' ? (1 - personalityScores[t.key]) * 100 : personalityScores[t.key] * 100),
+        backgroundColor: 'hsla(210, 70%, 50%, 0.2)',
+        borderColor: 'hsl(210, 70%, 50%)',
+        borderWidth: 2,
+        pointBackgroundColor: 'hsl(210, 70%, 50%)',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: 'hsl(210, 70%, 50%)',
+      },
+    ],
+  };
+
+  const radarOptions = {
+    scales: {
+      r: {
+        angleLines: { color: 'hsl(210, 20%, 88%)' },
+        grid: { color: 'hsl(210, 20%, 88%)' },
+        pointLabels: { 
+          font: { size: 11, family: 'Inter' },
+          color: 'hsl(215, 25%, 35%)'
+        },
+        ticks: { display: false },
+        suggestedMin: 0,
+        suggestedMax: 100,
+      },
+    },
+    plugins: {
+      legend: { display: false },
+    },
+    maintainAspectRatio: true,
+  };
+
   const handleDownloadPDF = () => {
-    // Create a simple text report
-    let report = "AI-POWERED CAREER COUNSELOR REPORT\n";
-    report += "=====================================\n\n";
-    report += "PERSONALITY PROFILE\n";
-    report += "-------------------\n";
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 20;
+
+    // Title
+    doc.setFontSize(22);
+    doc.setTextColor(33, 53, 71);
+    doc.text('Trait Treks - Career Report', pageWidth / 2, y, { align: 'center' });
+    y += 15;
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, y, { align: 'center' });
+    y += 15;
+
+    // Personality Profile
+    doc.setFontSize(16);
+    doc.setTextColor(33, 53, 71);
+    doc.text('Personality Profile (Big Five)', 20, y);
+    y += 10;
+
+    doc.setFontSize(11);
     traitData.forEach(trait => {
-      report += `${trait.name}: ${Math.round(personalityScores[trait.key] * 100)}%\n`;
+      const score = trait.key === 'N' ? 1 - personalityScores[trait.key] : personalityScores[trait.key];
+      doc.setTextColor(60);
+      doc.text(`${trait.name}: ${Math.round(score * 100)}%`, 25, y);
+      y += 7;
     });
-    report += "\nEXTRACTED SKILLS & INTERESTS\n";
-    report += "-----------------------------\n";
-    report += `Skills: ${profile.skills.join(', ') || 'None detected'}\n`;
-    report += `Interests: ${profile.interests.join(', ') || 'None detected'}\n`;
-    report += "\nTOP CAREER RECOMMENDATIONS\n";
-    report += "---------------------------\n";
+    y += 8;
+
+    // Extracted Profile
+    doc.setFontSize(16);
+    doc.setTextColor(33, 53, 71);
+    doc.text('Extracted Profile', 20, y);
+    y += 10;
+
+    doc.setFontSize(11);
+    doc.setTextColor(60);
+    doc.text(`Skills: ${profile.skills.length > 0 ? profile.skills.join(', ') : 'None detected'}`, 25, y);
+    y += 7;
+    doc.text(`Interests: ${profile.interests.length > 0 ? profile.interests.join(', ') : 'None detected'}`, 25, y);
+    y += 7;
+    doc.text(`Sentiment: ${profile.sentiment}`, 25, y);
+    y += 15;
+
+    // Top Recommendations
+    doc.setFontSize(16);
+    doc.setTextColor(33, 53, 71);
+    doc.text('Top Career Recommendations', 20, y);
+    y += 10;
+
     recommendations.slice(0, 5).forEach((rec, i) => {
-      report += `\n${i + 1}. ${rec.career.title} (${Math.round(rec.matchScore * 100)}% match)\n`;
-      report += `   ${rec.career.description}\n`;
-      rec.explanations.forEach(exp => {
-        report += `   • ${exp}\n`;
+      if (y > 250) {
+        doc.addPage();
+        y = 20;
+      }
+      
+      doc.setFontSize(12);
+      doc.setTextColor(33, 53, 71);
+      doc.text(`${i + 1}. ${rec.career.title} (${Math.round(rec.matchScore * 100)}% match)`, 25, y);
+      y += 6;
+      
+      doc.setFontSize(10);
+      doc.setTextColor(80);
+      const descLines = doc.splitTextToSize(rec.career.description, pageWidth - 50);
+      doc.text(descLines, 30, y);
+      y += descLines.length * 5 + 3;
+
+      rec.explanations.slice(0, 2).forEach(exp => {
+        const expLines = doc.splitTextToSize(`• ${exp}`, pageWidth - 55);
+        doc.text(expLines, 32, y);
+        y += expLines.length * 5;
       });
+      y += 8;
     });
 
-    const blob = new Blob([report], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'career-recommendations-report.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // Footer
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text('AI-Powered Career Counselor | Muhammad Abdullah | UWL RAK', pageWidth / 2, 285, { align: 'center' });
 
+    doc.save('trait-treks-career-report.pdf');
+    
     toast({
-      title: "Report Downloaded",
-      description: "Your career recommendations report has been saved.",
+      title: "PDF Downloaded",
+      description: "Your career report has been saved successfully.",
     });
   };
 
@@ -87,7 +187,7 @@ const ResultsDashboard = ({
   };
 
   return (
-    <div className="min-h-screen gradient-hero py-8 px-4" ref={dashboardRef}>
+    <div className="min-h-screen gradient-hero py-8 px-4">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="gradient-card rounded-2xl shadow-elegant border border-border/50 p-6 mb-6 animate-fade-in">
@@ -101,51 +201,29 @@ const ResultsDashboard = ({
               </p>
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" onClick={onRestart}>
+              <Button variant="outline" onClick={onRestart} className="hover:scale-[1.02] transition-transform">
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Start Over
               </Button>
-              <Button variant="hero" onClick={handleDownloadPDF}>
+              <Button variant="hero" onClick={handleDownloadPDF} className="hover:scale-[1.02] transition-transform">
                 <Download className="w-4 h-4 mr-2" />
-                Download Report
+                Download PDF
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Personality Profile */}
+        {/* Personality Profile with Radar Chart */}
         <div className="grid md:grid-cols-2 gap-6 mb-6">
           <div className="gradient-card rounded-xl shadow-elegant border border-border/50 p-6 animate-slide-up">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 rounded-lg bg-primary/10">
                 <Brain className="w-5 h-5 text-primary" />
               </div>
-              <h2 className="font-display text-xl font-semibold text-foreground">Personality Profile</h2>
+              <h2 className="font-display text-xl font-semibold text-foreground">Personality Radar</h2>
             </div>
-
-            <div className="space-y-4">
-              {traitData.map((trait) => {
-                const score = personalityScores[trait.key];
-                const description = score > 0.6 
-                  ? traitDescriptions[trait.key].high 
-                  : traitDescriptions[trait.key].low;
-
-                return (
-                  <div key={trait.key}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-foreground">{trait.name}</span>
-                      <span className="text-sm text-muted-foreground">{Math.round(score * 100)}%</span>
-                    </div>
-                    <div className="h-3 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className={cn("h-full rounded-full transition-all duration-500", trait.color)}
-                        style={{ width: `${score * 100}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{description}</p>
-                  </div>
-                );
-              })}
+            <div className="aspect-square max-w-[280px] mx-auto">
+              <Radar data={radarData} options={radarOptions} />
             </div>
           </div>
 
@@ -191,10 +269,7 @@ const ResultsDashboard = ({
 
               <div>
                 <h3 className="text-sm font-medium text-foreground mb-2">Overall Sentiment</h3>
-                <Badge 
-                  variant={profile.sentiment === 'positive' ? 'default' : 'secondary'}
-                  className="capitalize"
-                >
+                <Badge variant={profile.sentiment === 'positive' ? 'default' : 'secondary'} className="capitalize">
                   {profile.sentiment}
                 </Badge>
               </div>
@@ -210,7 +285,7 @@ const ResultsDashboard = ({
             </div>
             <div>
               <h2 className="font-display text-xl font-semibold text-foreground">Top Career Matches</h2>
-              <p className="text-sm text-muted-foreground">Click on a career to see detailed explanations</p>
+              <p className="text-sm text-muted-foreground">Click to see detailed explanations</p>
             </div>
           </div>
 
@@ -230,7 +305,7 @@ const ResultsDashboard = ({
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-4">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full gradient-primary text-primary-foreground font-bold">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-full gradient-primary text-primary-foreground font-bold shrink-0">
                           {index + 1}
                         </div>
                         <div>
@@ -245,11 +320,7 @@ const ResultsDashboard = ({
                           </div>
                           <div className="text-xs text-muted-foreground">match</div>
                         </div>
-                        {isExpanded ? (
-                          <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                        )}
+                        {isExpanded ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
                       </div>
                     </div>
 
@@ -288,11 +359,26 @@ const ResultsDashboard = ({
                           </div>
                         </div>
 
+                        {/* Explainability Section */}
                         <div className="bg-muted/50 rounded-lg p-4">
-                          <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-primary" />
-                            Why This Matches You
+                          <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
+                            <Info className="w-4 h-4 text-primary" />
+                            Why This Matches You (Explainable AI)
                           </h4>
+                          <div className="grid grid-cols-3 gap-2 mb-3">
+                            <div className="text-center p-2 rounded bg-primary/10">
+                              <div className="text-lg font-bold text-primary">{rec.explainability.personalityContribution}%</div>
+                              <div className="text-xs text-muted-foreground">Personality</div>
+                            </div>
+                            <div className="text-center p-2 rounded bg-secondary/10">
+                              <div className="text-lg font-bold text-secondary">{rec.explainability.skillContribution}%</div>
+                              <div className="text-xs text-muted-foreground">Skills</div>
+                            </div>
+                            <div className="text-center p-2 rounded bg-accent/10">
+                              <div className="text-lg font-bold text-accent">{rec.explainability.interestContribution}%</div>
+                              <div className="text-xs text-muted-foreground">Interests</div>
+                            </div>
+                          </div>
                           <ul className="space-y-2">
                             {rec.explanations.map((exp, i) => (
                               <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
@@ -301,14 +387,6 @@ const ResultsDashboard = ({
                               </li>
                             ))}
                           </ul>
-                          {rec.skillMatches.length > 0 && (
-                            <div className="mt-3 pt-3 border-t border-border/50">
-                              <p className="text-sm text-muted-foreground">
-                                <span className="font-medium text-foreground">Matching keywords:</span>{' '}
-                                {rec.skillMatches.join(', ')}
-                              </p>
-                            </div>
-                          )}
                         </div>
                       </div>
                     )}
@@ -342,7 +420,7 @@ const ResultsDashboard = ({
           </div>
           {satisfaction && (
             <p className="text-center text-sm text-muted-foreground mt-3 animate-fade-in">
-              Thank you for your feedback! Your input helps improve our recommendations.
+              Thank you! Your feedback helps improve our recommendations.
             </p>
           )}
         </div>
