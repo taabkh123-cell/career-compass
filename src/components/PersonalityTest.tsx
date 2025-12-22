@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { personalityQuestions, mandatoryQuestionCount } from '@/data/personalityQuestions';
+import { personalityQuestions } from '@/data/personalityQuestions';
 import { ChevronLeft, ChevronRight, Star, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +16,9 @@ const PersonalityTest = ({ onComplete, onBack }: PersonalityTestProps) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [responses, setResponses] = useState<Record<number, number>>({});
   const [showWarning, setShowWarning] = useState(false);
+
+  // Calculate mandatory count from questions
+  const mandatoryQuestionCount = personalityQuestions.filter(q => q.mandatory).length;
 
   const totalPages = Math.ceil(personalityQuestions.length / QUESTIONS_PER_PAGE);
   const startIndex = currentPage * QUESTIONS_PER_PAGE;
@@ -114,7 +117,7 @@ const PersonalityTest = ({ onComplete, onBack }: PersonalityTestProps) => {
               <span>Required question</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-full border border-border"></div>
+              <div className="w-3 h-3 rounded-full border border-border" />
               <span>Optional question</span>
             </div>
           </div>
@@ -127,7 +130,7 @@ const PersonalityTest = ({ onComplete, onBack }: PersonalityTestProps) => {
             <div>
               <p className="text-sm font-medium text-destructive">Please answer required questions</p>
               <p className="text-xs text-destructive/80 mt-1">
-                Questions marked with a star (★) must be answered before proceeding.
+                Questions marked with a star must be answered before proceeding.
               </p>
             </div>
           </div>

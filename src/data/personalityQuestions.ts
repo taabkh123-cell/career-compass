@@ -7,7 +7,7 @@ export interface PersonalityQuestion {
   text: string;
   trait: 'O' | 'C' | 'E' | 'A' | 'N';
   reversed: boolean;
-  mandatory: boolean; // Starred questions that must be answered
+  mandatory: boolean;
 }
 
 export const personalityQuestions: PersonalityQuestion[] = [
@@ -79,7 +79,3 @@ export const traitDescriptions = {
     low: "You are emotionally stable and resilient. You handle stress well and maintain a calm demeanor.",
   },
 };
-
-// Count mandatory questions
-export const mandatoryQuestionCount = personalityQuestions.filter(q => q.mandatory).length;
-export const totalQuestionCount = personalityQuestions.length;
