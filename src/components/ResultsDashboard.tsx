@@ -50,13 +50,13 @@ const ResultsDashboard = ({
     { key: 'N' as const, name: 'Emotional Stability', color: 'hsl(270, 60%, 55%)' },
   ];
 
-  // Radar chart data
-  const radarData = {
-    labels: traitData.map(t => t.name),
+  // Radar chart data (typed as `any` to avoid deep Chart.js generic inference that can crash the TS compiler)
+  const radarData: any = {
+    labels: traitData.map((t) => t.name),
     datasets: [
       {
         label: 'Your Profile',
-        data: traitData.map(t => t.key === 'N' ? (1 - personalityScores[t.key]) * 100 : personalityScores[t.key] * 100),
+        data: traitData.map((t) => (t.key === 'N' ? (1 - personalityScores[t.key]) * 100 : personalityScores[t.key] * 100)),
         backgroundColor: 'hsla(210, 70%, 50%, 0.2)',
         borderColor: 'hsl(210, 70%, 50%)',
         borderWidth: 2,
@@ -68,14 +68,14 @@ const ResultsDashboard = ({
     ],
   };
 
-  const radarOptions = {
+  const radarOptions: any = {
     scales: {
       r: {
         angleLines: { color: 'hsl(210, 20%, 88%)' },
         grid: { color: 'hsl(210, 20%, 88%)' },
-        pointLabels: { 
+        pointLabels: {
           font: { size: 11, family: 'Inter' },
-          color: 'hsl(215, 25%, 35%)'
+          color: 'hsl(215, 25%, 35%)',
         },
         ticks: { display: false },
         suggestedMin: 0,
